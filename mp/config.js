@@ -1,11 +1,41 @@
-// 环境配置：本地联调时开发者工具需勾选「不校验合法域名」
-// 真机/提审前：把 BASE_URL / WS_URL 改为已备案 HTTPS 域名并在 MP 后台配置服务器域名白名单
-module.exports = {
-  ENV: 'dev',
-  // 本地后端地址（Node 服务默认 3000 端口）
+// 环境配置
+// 微信小程序用 envVersion 自动区分运行环境，无需手动切换、也无需构建注入：
+//   develop -> 开发者工具 / 开发版（本地后端，需勾选「不校验合法域名」）
+//   trial   -> 体验版（CI 预览/上传出来的包，扫码真机即用）
+//   release -> 正式版（提审发布后）
+// 真机（trial/release）要让后端可达，BASE_URL 必须是「已备案 HTTPS 域名」，
+// 并在 MP 后台「服务器域名」登记 request 合法域名 + socket 合法域名。
+
+function resolveEnv() {
+  try {
+    const v = wx.getAccountInfoSync().miniProgram.envVersion;
+    if (v === 'develop' || v === 'trial' || v === 'release') return v;
+  } catch (e) {
+    // 取不到时兜底为开发环境（本地联调）
+  }
+  return 'develop';
+}
+
+const ENV = resolveEnv();
+
+// 本地开发（开发者工具、urlCheck:false 时）
+const LOCAL = {
   BASE_URL: 'http://127.0.0.1:3000/api',
   WS_URL: 'ws://127.0.0.1:3000',
-  // 真机示例（替换为你自己的域名）：
-  // BASE_URL: 'https://api.your-domain.com/api',
-  // WS_URL: 'wss://api.your-domain.com',
+};
+
+// 体验版 / 正式版（真机）-> 换成你自己的已备案 HTTPS 域名
+// TODO: 把 api.your-domain.com 改成你的真实域名，并部署后端 + 在 MP 后台登记合法域名
+const PROD = {
+  BASE_URL: 'https://api.your-domain.com/api',
+  WS_URL: 'wss://api.your-domain.com',
+};
+
+const IS_DEV = ENV === 'develop';
+
+module.exports = {
+  ENV,
+  IS_DEV,
+  BASE_URL: IS_DEV ? LOCAL.BASE_URL : PROD.BASE_URL,
+  WS_URL: IS_DEV ? LOCAL.WS_URL : PROD.WS_URL,
 };
