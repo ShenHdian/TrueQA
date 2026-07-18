@@ -1,0 +1,16 @@
+# 依赖
+node_modules/
+
+# 微信上传密钥（绝不入库）
+private.key
+.ci-private.key
+
+# CI 生成的预览二维码
+scripts/preview.png
+
+# 运行时数据（种子在代码里，db.json 自动生成）
+server/data/db.json
+
+# 系统
+.DS_Store
+*.log

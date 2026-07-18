@@ -1,0 +1,6 @@
+<view class="page fight">
+  <view class="card">
+    <view class="t1">对战进行中</view>
+    <view class="desc muted">像素牛仔对枪、老虎机抽弹、血量动画等将在 P3 实现。</view>
+  </view>
+</view>

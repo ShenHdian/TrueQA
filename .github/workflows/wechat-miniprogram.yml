@@ -1,0 +1,56 @@
+name: WeChat Mini Program CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'preview = 生成真机预览二维码；upload = 上传为体验版'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - upload
+
+jobs:
+  mini-program:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install miniprogram-ci
+        run: npm install miniprogram-ci@latest
+
+      # —— 预览二维码（push 自动跑，或手动选 preview）——
+      - name: Generate preview QR
+        if: ${{ github.event_name == 'push' || github.event.inputs.mode == 'preview' }}
+        run: node scripts/ci-miniprogram.js preview
+        env:
+          WX_APPID: ${{ secrets.WX_APPID }}
+          WX_PRIVATE_KEY: ${{ secrets.WX_PRIVATE_KEY }}
+          PROJECT_PATH: ./mp
+
+      - name: Upload preview QR artifact
+        if: ${{ github.event_name == 'push' || github.event.inputs.mode == 'preview' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-qr
+          path: scripts/preview.png
+
+      # —— 上传体验版（仅手动 workflow_dispatch 选 upload 时）——
+      - name: Upload as experience version
+        if: ${{ github.event.inputs.mode == 'upload' }}
+        run: node scripts/ci-miniprogram.js upload
+        env:
+          WX_APPID: ${{ secrets.WX_APPID }}
+          WX_PRIVATE_KEY: ${{ secrets.WX_PRIVATE_KEY }}
+          PROJECT_PATH: ./mp
+          VERSION: '1.0.0'

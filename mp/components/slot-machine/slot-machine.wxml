@@ -1,0 +1,16 @@
+<view class="slot">
+  <view
+    class="reel"
+    wx:for="{{reels}}"
+    wx:for-item="reel"
+    wx:for-index="ri"
+    wx:key="ri"
+  >
+    <view
+      class="strip"
+      style="transform: translateY({{positions[ri]}}px); transition: {{transitions[ri]}};"
+    >
+      <view class="cell" wx:for="{{reel}}" wx:for-item="ch" wx:key="*this">{{ch}}</view>
+    </view>
+  </view>
+</view>

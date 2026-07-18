@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>真心话抽卡 · 网页版</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #f5f5f4; --card: #ffffff; --ink: #2b2b2b; --sub: #8a8a8a;
+    --line: #e6e4e0; --sand: #e0a458; --sand-d: #c8893a; --danger: #d9534f;
+  }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex; justify-content: center;
+  }
+  .app { width: 100%; max-width: 420px; min-height: 100vh; padding: 20px 16px 40px; }
+  header { text-align: center; margin-bottom: 18px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: 2px; }
+  header .tip { font-size: 12px; color: var(--sub); }
+  header .me { font-size: 12px; color: var(--sand-d); margin-top: 4px; }
+
+  /* 老虎机 */
+  .slots { display: flex; gap: 8px; justify-content: center; margin: 10px 0 14px; }
+  .reel {
+    width: 30%; height: 64px; overflow: hidden; background: #1f1b17;
+    border-radius: 10px; border: 2px solid #3a322a; position: relative;
+    box-shadow: inset 0 8px 12px rgba(0,0,0,.5), inset 0 -8px 12px rgba(0,0,0,.5);
+  }
+  .reel-inner { will-change: transform; }
+  .reel-item {
+    height: 64px; display: flex; align-items: center; justify-content: center;
+    color: #f3d9a6; font-size: 14px; font-weight: 600; padding: 0 6px; text-align: center;
+  }
+
+  /* 翻牌 */
+  .stage { perspective: 1200px; margin: 0 auto 18px; }
+  .flip {
+    position: relative; width: 100%; height: 220px;
+    transform-style: preserve-3d; transition: transform .65s cubic-bezier(.4,.2,.2,1);
+  }
+  .flip.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 16px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 22px; text-align: center;
+  }
+  .face-front {
+    background: linear-gradient(160deg, var(--sand), var(--sand-d));
+    color: #fff; box-shadow: 0 10px 30px rgba(200,137,58,.35);
+  }
+  .face-front .big { font-size: 46px; margin-bottom: 8px; }
+  .face-front .hint { font-size: 15px; opacity: .92; letter-spacing: 1px; }
+  .face-back {
+    background: var(--card); border: 2px solid var(--line); transform: rotateY(180deg);
+    box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  }
+  .face-back .q { font-size: 19px; line-height: 1.6; font-weight: 600; }
+  .face-back .anger {
+    margin-top: 16px; font-size: 13px; color: #fff; background: var(--danger);
+    padding: 4px 14px; border-radius: 20px; font-weight: 600;
+  }
+  .face-back .src { margin-top: 10px; font-size: 11px; color: var(--sub); }
+
+  .btn {
+    display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
+    font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 2px;
+    background: linear-gradient(160deg, var(--sand), var(--sand-d));
+    box-shadow: 0 8px 20px rgba(200,137,58,.35); cursor: pointer;
+  }
+  .btn:disabled { opacity: .55; }
+  .btn.ghost {
+    background: #fff; color: var(--sand-d); border: 1.5px solid var(--sand);
+    box-shadow: none; margin-top: 10px; font-size: 14px;
+  }
+
+  /* 题库面板 */
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 26px; }
+  .panel h2 { font-size: 16px; margin: 0 0 12px; }
+  textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+    font-size: 14px; resize: vertical; min-height: 64px; font-family: inherit;
+  }
+  .row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  .row label { font-size: 13px; color: var(--sub); white-space: nowrap; }
+  input[type=range] { flex: 1; accent-color: var(--danger); }
+  .anger-val { font-weight: 700; color: var(--danger); width: 22px; text-align: center; }
+  .small-btn {
+    background: var(--sand-d); color: #fff; border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer;
+  }
+  .qlist { list-style: none; margin: 12px 0 0; padding: 0; }
+  .qitem { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .qitem .txt { flex: 1; font-size: 14px; line-height: 1.4; }
+  .qitem .a { font-size: 12px; color: #fff; background: var(--danger); border-radius: 12px; padding: 2px 8px; }
+  .qitem .del { color: var(--sub); font-size: 12px; cursor: pointer; border: none; background: none; }
+  .divider { height: 1px; background: var(--line); margin: 18px 0; }
+  .empty { font-size: 13px; color: var(--sub); text-align: center; padding: 10px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🤠 真心话抽卡</h1>
+    <div class="tip">网页体验版 · 数据直连本地后端</div>
+    <div class="me" id="me">登录中…</div>
+  </header>
+
+  <div class="slots">
+    <div class="reel"><div class="reel-inner" id="reel0"></div></div>
+    <div class="reel"><div class="reel-inner" id="reel1"></div></div>
+    <div class="reel"><div class="reel-inner" id="reel2"></div></div>
+  </div>
+
+  <div class="stage">
+    <div class="flip" id="flip">
+      <div class="face face-front">
+        <div class="big">🎰</div>
+        <div class="hint">点击下方按钮抽卡</div>
+      </div>
+      <div class="face face-back">
+        <div class="q" id="qText">—</div>
+        <div class="anger" id="qAnger">怒气 0</div>
+        <div class="src" id="qSrc"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn" id="drawBtn">抽 一 张</button>
+  <button class="btn ghost" id="toBank">📚 我的题库</button>
+
+  <!-- 题库 -->
+  <div class="panel" id="bankPanel" style="display:none">
+    <h2>➕ 手动添加</h2>
+    <textarea id="addText" placeholder="输入一道真心话题目"></textarea>
+    <div class="row">
+      <label>怒气值</label>
+      <input type="range" id="addAnger" min="0" max="10" value="5" />
+      <span class="anger-val" id="addAngerVal">5</span>
+    </div>
+    <button class="small-btn" id="addBtn">添加</button>
+
+    <div class="divider"></div>
+
+    <h2>📥 批量导入</h2>
+    <textarea id="pasteText" placeholder="每行一道题；可选格式：题目|怒气值(0-10)"></textarea>
+    <button class="small-btn" id="parseBtn" style="margin-top:8px">解析</button>
+    <div id="importRows"></div>
+    <button class="small-btn" id="importBtn" style="display:none;margin-top:10px;background:#3a7d44">确认导入</button>
+
+    <div class="divider"></div>
+
+    <h2>📚 我的题库（<span id="mineTotal">0</span>）</h2>
+    <ul class="qlist" id="mineList"></ul>
+    <div class="empty" id="mineEmpty">还没有题目，先添加一道吧</div>
+  </div>
+</div>
+
+<script>
+const BASE = 'http://127.0.0.1:3000/api';
+const PHRASES = ['真心话','大冒险','秘密','坦诚','勇敢','告白','恐惧','遗憾','选择','底线',
+  '朋友','爱情','金钱','梦想','背叛','原谅','孤独','野心','自尊','自由','过去','未来','现在','信仰','欲望'];
+
+let TOKEN = localStorage.getItem('truetoken') || '';
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (TOKEN) opts.headers.Authorization = 'Bearer ' + TOKEN;
+  const r = await fetch(BASE + path, opts);
+  const j = await r.json();
+  if (j.code === 0 || j.code === undefined) return j.data !== undefined ? j.data : j;
+  throw new Error(j.message || 'request failed');
+}
+
+async function ensureLogin() {
+  if (TOKEN) {
+    try { await api('/questions?mine=1'); $('me').textContent = '已登录'; return; }
+    catch (e) { /* token 失效，重登 */ }
+  }
+  const code = 'web_' + Math.random().toString(36).slice(2);
+  const d = await api('/auth/wechat-login', { method: 'POST', body: JSON.stringify({ code }) });
+  TOKEN = d.access_token;
+  localStorage.setItem('truetoken', TOKEN);
+  $('me').textContent = '已登录';
+}
+
+// ---- 老虎机 ----
+function buildReel(el, target, duration) {
+  const strip = [];
+  const n = 34;
+  for (let i = 0; i < n; i++) strip.push(PHRASES[Math.floor(Math.random() * PHRASES.length)]);
+  strip.push(target); // 最后一个是目标
+  el.innerHTML = strip.map((t) => `<div class="reel-item">${t}</div>`).join('');
+  const itemH = 64;
+  el.style.transition = 'none';
+  el.style.transform = 'translateY(0)';
+  void el.offsetHeight; // reflow
+  el.style.transition = `transform ${duration}ms cubic-bezier(.18,.85,.2,1)`;
+  el.style.transform = `translateY(${-(n * itemH)}px)`;
+}
+
+function spinReels(fragments) {
+  const durs = [1700, 1950, 2200];
+  for (let i = 0; i < 3; i++) buildReel($('reel' + i), fragments[i] || PHRASES[i], durs[i]);
+  return Math.max(...durs);
+}
+
+// ---- 抽卡 ----
+let drawing = false;
+async function draw() {
+  if (drawing) return;
+  drawing = true;
+  $('drawBtn').disabled = true;
+  $('flip').classList.remove('flipped');
+
+  let q;
+  try { q = await api('/questions/random'); }
+  catch (e) { alert('抽卡失败：' + e.message); drawing = false; $('drawBtn').disabled = false; return; }
+
+  // 把题目切成 3 段喂给老虎机
+  const content = q.content || '';
+  const seg = Math.ceil(content.length / 3) || 1;
+  const frags = [content.slice(0, seg), content.slice(seg, seg * 2), content.slice(seg * 2)];
+
+  const dur = spinReels(frags);
+  setTimeout(() => {
+    $('qText').textContent = content;
+    $('qAnger').textContent = '怒气 ' + (q.anger ?? 0);
+    $('qSrc').textContent = q.source === 'user' ? '（我的题目）' : '（系统题目）';
+    $('flip').classList.add('flipped');
+    drawing = false;
+    $('drawBtn').disabled = false;
+  }, dur + 120);
+}
+
+// ---- 题库 ----
+async function loadMine() {
+  const { list, total } = await api('/questions?mine=1');
+  $('mineTotal').textContent = total;
+  const ul = $('mineList');
+  ul.innerHTML = '';
+  if (!list.length) { $('mineEmpty').style.display = 'block'; return; }
+  $('mineEmpty').style.display = 'none';
+  list.forEach((q) => {
+    const li = document.createElement('li');
+    li.className = 'qitem';
+    li.innerHTML = `<span class="txt">${escapeHtml(q.content)}</span>
+      <span class="a">怒${q.anger}</span>
+      <button class="del">删除</button>`;
+    li.querySelector('.del').onclick = async () => {
+      if (!confirm('删除这道题？')) return;
+      await api('/questions/' + q.id, { method: 'DELETE' });
+      loadMine();
+    };
+    ul.appendChild(li);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function bindBank() {
+  $('addAnger').oninput = (e) => ($('addAngerVal').textContent = e.target.value);
+  $('addBtn').onclick = async () => {
+    const content = $('addText').value.trim();
+    if (!content) return alert('请输入题目');
+    await api('/questions', { method: 'POST', body: JSON.stringify({ content, anger: +$('addAnger').value }) });
+    $('addText').value = '';
+    loadMine();
+  };
+  $('parseBtn').onclick = () => {
+    const lines = $('pasteText').value.split('\n').map((s) => s.trim()).filter(Boolean);
+    const rows = lines.map((line) => {
+      let content = line, anger = 5;
+      const idx = line.lastIndexOf('|');
+      if (idx > 0) {
+        const m = line.slice(idx + 1).trim(); const n = Number(m);
+        if (!isNaN(n) && n >= 0 && n <= 10) { anger = Math.round(n); content = line.slice(0, idx).trim(); }
+      }
+      return { content, anger };
+    });
+    const box = $('importRows');
+    box.innerHTML = rows.map((r, i) => `
+      <div class="qitem">
+        <span class="txt">${escapeHtml(r.content)}</span>
+        <input type="range" min="0" max="10" value="${r.anger}" data-i="${i}" class="impA" style="width:90px">
+        <span class="anger-val impV" id="impV${i}">${r.anger}</span>
+      </div>`).join('');
+    box.querySelectorAll('.impA').forEach((el) => el.oninput = (e) => $('impV' + e.target.dataset.i).textContent = e.target.value);
+    $('importBtn').style.display = rows.length ? 'block' : 'none';
+    $('importBtn').onclick = async () => {
+      const data = rows.map((r, i) => ({ content: r.content, anger: +$('impV' + i).textContent }));
+      await api('/questions/batch', { method: 'POST', body: JSON.stringify({ items: data }) });
+      $('pasteText').value = ''; box.innerHTML = ''; $('importBtn').style.display = 'none';
+      loadMine();
+    };
+  };
+  $('toBank').onclick = () => {
+    const p = $('bankPanel');
+    const show = p.style.display === 'none';
+    p.style.display = show ? 'block' : 'none';
+    if (show) loadMine();
+  };
+}
+
+// ---- 启动 ----
+(async () => {
+  bindBank();
+  $('drawBtn').onclick = draw;
+  await ensureLogin();
+  loadMine();
+})();
+</script>
+</body>
+</html>

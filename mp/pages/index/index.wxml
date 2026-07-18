@@ -1,0 +1,32 @@
+<view class="page index">
+  <view class="head">
+    <view class="title">单人抽卡</view>
+    <view class="sub">老虎机抽题 · 翻牌揭晓</view>
+  </view>
+
+  <view class="stage">
+    <view class="slot-wrap" style="visibility:{{flipped ? 'hidden' : 'visible'}}">
+      <slot-machine trigger="{{trigger}}" bind:done="onSlotDone" />
+    </view>
+    <view class="card-wrap" style="visibility:{{flipped ? 'visible' : 'hidden'}}">
+      <flip-card class="flip-card-el" flipped="{{flipped}}">
+        <view slot="front" class="q-front">?</view>
+        <view slot="back" class="q-back">
+          <view class="q-tag">{{sourceLabel}}</view>
+          <view class="q-text">{{question.content}}</view>
+          <view class="q-anger" wx:if="{{question && question.anger !== undefined}}">怒气值 {{question.anger}}</view>
+        </view>
+      </flip-card>
+    </view>
+  </view>
+
+  <button class="btn btn-primary draw-btn" bindtap="onDraw" disabled="{{spinning}}">
+    {{spinning ? '抽取中…' : '抽一张'}}
+  </button>
+
+  <view class="battle-entry">
+    <button class="btn btn-ghost" bindtap="goBattle">邀请好友对战</button>
+  </view>
+
+  <view class="tip muted">优先抽取你自己的题；没有时自动抽系统题</view>
+</view>

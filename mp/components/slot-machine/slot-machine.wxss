@@ -1,0 +1,22 @@
+.slot {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+}
+.reel {
+  width: 96rpx;
+  height: 80px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 12rpx;
+  box-shadow: inset 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid #eee;
+}
+.cell {
+  height: 80px;
+  line-height: 80px;
+  text-align: center;
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #333;
+}

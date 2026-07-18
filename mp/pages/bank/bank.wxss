@@ -1,0 +1,94 @@
+.bank .head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.count {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.actions .mini {
+  display: inline-block;
+  font-size: 26rpx;
+  padding: 10rpx 28rpx;
+  margin-left: 16rpx;
+  background: #fff;
+  border: 1rpx solid #ddd;
+  border-radius: 999rpx;
+  line-height: 1.6;
+}
+.ta {
+  width: 100%;
+  height: 160rpx;
+  box-sizing: border-box;
+  padding: 20rpx;
+  background: #fafafa;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+.anger-row {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 0;
+}
+.anger-label {
+  font-size: 26rpx;
+  width: 180rpx;
+}
+.slider {
+  flex: 1;
+}
+.add-form .btn,
+.import-form .btn {
+  margin-top: 20rpx;
+}
+.import-form .preview {
+  margin-top: 24rpx;
+  border-top: 1rpx solid #eee;
+  padding-top: 20rpx;
+}
+.row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.row-ta {
+  flex: 1;
+  background: #fafafa;
+  border-radius: 10rpx;
+  padding: 14rpx;
+  font-size: 26rpx;
+  height: 64rpx;
+  box-sizing: border-box;
+}
+.row-slider {
+  width: 220rpx;
+}
+.del {
+  color: #c0392b;
+  font-size: 26rpx;
+  padding: 0 16rpx;
+}
+.list .item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.item-main {
+  flex: 1;
+}
+.item-content {
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+.item-anger {
+  font-size: 22rpx;
+  color: #c0392b;
+  margin-top: 6rpx;
+}
+.empty {
+  text-align: center;
+  margin-top: 60rpx;
+}

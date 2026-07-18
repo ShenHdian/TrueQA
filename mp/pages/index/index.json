@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "真心话",
+  "usingComponents": {
+    "slot-machine": "/components/slot-machine/slot-machine",
+    "flip-card": "/components/flip-card/flip-card"
+  }
+}

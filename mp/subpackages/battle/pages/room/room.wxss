@@ -1,0 +1,10 @@
+.room .t1 {
+  font-size: 40rpx;
+  font-weight: 700;
+  text-align: center;
+}
+.room .desc {
+  margin: 24rpx 0 32rpx;
+  line-height: 1.6;
+  text-align: center;
+}

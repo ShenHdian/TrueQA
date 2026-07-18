@@ -1,0 +1,8 @@
+<view class="page room">
+  <view class="card">
+    <view class="t1">西部对战</view>
+    <view class="desc muted">创建房间 → 微信分享邀请对手 → 2 人开战。
+本页为占位，完整实时对战（老虎机抽弹 / 像素对枪 / 结算评级）将在 P3 实现。</view>
+    <button class="btn btn-primary" bindtap="onCreate">创建房间并生成分享</button>
+  </view>
+</view>

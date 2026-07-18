@@ -1,0 +1,6 @@
+<view class="flip {{flipped ? 'flipped' : ''}}">
+  <view class="flip-inner">
+    <view class="face front"><slot name="front"></slot></view>
+    <view class="face back"><slot name="back"></slot></view>
+  </view>
+</view>

@@ -1,0 +1,20 @@
+<view class="page profile">
+  <view class="card user">
+    <button class="avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+      <view class="avatar {{avatar ? '' : 'avatar-empty'}}">
+        <image wx:if="{{avatar}}" class="avatar-img" src="{{avatar}}" mode="aspectFill" />
+        <text wx:else>微</text>
+      </view>
+    </button>
+    <input class="nick" type="nickname" placeholder="点击设置昵称" value="{{nick}}" bindinput="onNick" bindblur="onNick" />
+    <view class="meta">
+      <text class="lv">等级 Lv.{{level}}</text>
+      <text class="hp">血量 {{hpBase}}</text>
+    </view>
+    <view class="expbar"><view class="expfill" style="width:{{expPercent}}%"></view></view>
+    <view class="muted">经验 {{exp}} / {{nextExp}}</view>
+  </view>
+
+  <button class="btn btn-ghost" wx:if="{{!logged}}" bindtap="reLogin">微信登录</button>
+  <view class="muted tip">登录态由微信 code 换取；头像昵称用最新授权方式获取，仅本地展示。</view>
+</view>

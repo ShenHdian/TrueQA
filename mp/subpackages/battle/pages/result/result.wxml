@@ -1,0 +1,6 @@
+<view class="page result">
+  <view class="card">
+    <view class="t1">结算</view>
+    <view class="desc muted">综合评级 S/A/B/C/D、经验与升级将在 P3 实现。</view>
+  </view>
+</view>

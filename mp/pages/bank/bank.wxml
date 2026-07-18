@@ -1,0 +1,45 @@
+<view class="page bank">
+  <view class="head">
+    <text class="count">我的题库（{{total}}）</text>
+    <view class="actions">
+      <button class="mini" bindtap="toggleAdd">添加</button>
+      <button class="mini" bindtap="toggleImport">批量导入</button>
+    </view>
+  </view>
+
+  <!-- 手动添加 -->
+  <view class="card add-form" wx:if="{{showAdd}}">
+    <textarea class="ta" placeholder="输入一道真心话题目" value="{{newContent}}" bindinput="onContent" maxlength="200" />
+    <view class="anger-row">
+      <text class="anger-label">怒气值 {{newAnger}}</text>
+      <slider class="slider" min="0" max="10" value="{{newAnger}}" show-value bindchanging="onAnger" bindchange="onAnger" />
+    </view>
+    <button class="btn btn-primary" bindtap="saveAdd">保存题目</button>
+  </view>
+
+  <!-- 批量导入 -->
+  <view class="card import-form" wx:if="{{showImport}}">
+    <textarea class="ta" placeholder="每行一道题；可选格式：题目|怒气值(0-10)" value="{{pasteText}}" bindinput="onPaste" />
+    <button class="btn btn-ghost" bindtap="parseImport">解析</button>
+    <view class="preview" wx:if="{{importRows.length}}">
+      <view class="row" wx:for="{{importRows}}" wx:key="key">
+        <input class="row-ta" value="{{item.content}}" data-index="{{index}}" bindinput="onRowContent" />
+        <slider class="row-slider" min="0" max="10" value="{{item.anger}}" show-value data-index="{{index}}" bindchanging="onRowAnger" bindchange="onRowAnger" />
+        <text class="del" data-index="{{index}}" bindtap="removeRow">删</text>
+      </view>
+      <button class="btn btn-primary" bindtap="confirmImport">确认导入 {{importRows.length}} 道</button>
+    </view>
+  </view>
+
+  <!-- 列表 -->
+  <view class="list">
+    <view class="card item" wx:for="{{list}}" wx:key="id">
+      <view class="item-main">
+        <view class="item-content">{{item.content}}</view>
+        <view class="item-anger">怒气 {{item.anger}}</view>
+      </view>
+      <text class="del" data-id="{{item.id}}" bindtap="onDelete">删除</text>
+    </view>
+    <view class="empty muted" wx:if="{{!list.length}}">还没有题目，去添加或批量导入吧</view>
+  </view>
+</view>
