@@ -24,11 +24,10 @@ const LOCAL = {
   WS_URL: 'ws://127.0.0.1:3000',
 };
 
-// 体验版 / 正式版（真机）-> 换成你自己的已备案 HTTPS 域名
-// TODO: 把 api.your-domain.com 改成你的真实域名，并部署后端 + 在 MP 后台登记合法域名
+// 体验版 / 正式版（真机）-> 已备案 HTTPS 域名，后端经 Nginx 反代到 :3000
 const PROD = {
-  BASE_URL: 'https://api.your-domain.com/api',
-  WS_URL: 'wss://api.your-domain.com',
+  BASE_URL: 'https://trueqa.shenhdou.asia/api',
+  WS_URL: 'wss://trueqa.shenhdou.asia',
 };
 
 const IS_DEV = ENV === 'develop';
