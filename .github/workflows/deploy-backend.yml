@@ -1,0 +1,62 @@
+name: Deploy Backend
+
+# 触发：推送 main 且改动在 server/ 时，自动把后端同步到云服务器并重启 pm2
+#        前端改动（mp/）不会触发本流程，避免无谓重启
+# 也可在 Actions 页手动 Run workflow 立即部署
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 仅拷贝 server/ 源码到服务器。注意：
+      # - db.json / node_modules 已被 .gitignore 排除，不会出现在 runner 工作区，
+      #   因此不会被覆盖 —— 服务器上的生产数据得以保留。
+      # - scp-action 默认 rm=false，不会删除服务器上已存在的多余文件（如 data/）。
+      - name: Copy server source to remote
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "server"
+          target: ${{ secrets.DEPLOY_PATH }}
+
+      # 重启常驻进程。前提：服务器已装 node 与 pm2（npm i -g pm2），
+      # 且已手动首次启动过一次（pm2 start server/src/index.js --name trueqa）。
+      - name: Restart pm2 process
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            command -v pm2 >/dev/null 2>&1 || { echo "ERROR: pm2 未安装，请先在服务器执行 npm i -g pm2"; exit 1; }
+
+            cd "${{ secrets.DEPLOY_PATH }}/server"
+
+            pm2 describe trueqa >/dev/null 2>&1 \
+              && pm2 restart trueqa --update-env \
+              || pm2 start src/index.js --name trueqa
+
+            pm2 save
+
+            # 部署后健康检查：确认后端真的起来了
+            sleep 2
+            if curl -sf http://localhost:3000/api/health >/dev/null; then
+              echo "deploy done ✅  backend health OK: $(date)"
+            else
+              echo "WARN: backend 启动但 /api/health 未响应，请登服务器排查"
+              pm2 logs trueqa --lines 20 --nostream
+              exit 1
+            fi
