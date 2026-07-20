@@ -8,8 +8,10 @@ private.key
 # CI 生成的预览二维码
 scripts/preview.png
 
-# 运行时数据（种子在代码里，db.json 自动生成）
+# 运行时数据：db.json 是服务器运行时自动生成/累积的，不入库（部署不会覆盖线上数据）
 server/data/db.json
+# 系统题种子：入库并随 CI 部署，服务器启动时由 seed.js 幂等合并（解决“本地数据/系统题上不去”）
+!server/data/seed-questions.json
 
 # 系统
 .DS_Store

@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { read, write } = require('./store');
 const { seed } = require('./seed');
 const { scoreAnger } = require('./ai');
+const { checkText } = require('./wechat');
 
 const PORT = process.env.PORT || 3000;
 
@@ -124,12 +125,16 @@ route('GET', '/api/questions/random', async (req, res) => {
   send(res, 200, { code: 0, data: q });
 });
 
-// 列表：?mine=1 仅看自己的
+// 列表：?mine=1 仅看自己的；否则只返回系统题（不泄露其他用户的私有题库）
 route('GET', '/api/questions', async (req, res) => {
   const user = authUser(req);
   const mine = req.url.includes('mine=1');
-  let list = db.questions;
-  if (mine && user) list = list.filter((q) => q.owner_openid === user.openid);
+  let list;
+  if (mine && user) {
+    list = db.questions.filter((q) => q.owner_openid === user.openid);
+  } else {
+    list = db.questions.filter((q) => q.source === 'system');
+  }
   send(res, 200, { code: 0, data: { list, total: list.length } });
 });
 
@@ -138,7 +143,11 @@ route('POST', '/api/questions', async (req, res) => {
   const user = authUser(req);
   if (!user) return send(res, 200, { code: 401, message: 'unauthorized' });
   const { content, anger } = req.body || {};
-  if (!content || !String(content).trim()) return send(res, 200, { code: 1, message: 'empty content' });
+  const text = content ? String(content).trim() : '';
+  if (!text) return send(res, 200, { code: 1, message: 'empty content' });
+  // UGC 内容安全审核
+  const c = await checkText(text, user.openid);
+  if (!c.ok) return send(res, 200, { code: 2, message: c.reason || '内容不合规，请修改后重试' });
   const q = {
     id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
     content: String(content).trim(),
@@ -159,21 +168,34 @@ route('POST', '/api/questions/batch', async (req, res) => {
   if (!user) return send(res, 200, { code: 401, message: 'unauthorized' });
   const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
   const added = [];
-  items.forEach((it) => {
-    if (it && it.content && String(it.content).trim()) {
-      added.push({
-        id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-        content: String(it.content).trim(),
-        anger: clampAnger(it.anger),
-        ai_reason: '',
-        source: 'user',
-        owner_openid: user.openid,
-        createdAt: Date.now(),
-      });
+  const blocked = [];
+  for (const it of items) {
+    const text = it && it.content ? String(it.content).trim() : '';
+    if (!text) continue;
+    const c = await checkText(text, user.openid);
+    if (!c.ok) {
+      blocked.push(text.slice(0, 20));
+      continue;
     }
-  });
+    added.push({
+      id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+      content: text,
+      anger: clampAnger(it.anger),
+      ai_reason: '',
+      source: 'user',
+      owner_openid: user.openid,
+      createdAt: Date.now(),
+    });
+  }
   db.questions.push(...added);
   write(db);
+  if (blocked.length) {
+    return send(res, 200, {
+      code: 2,
+      message: `已导入 ${added.length} 条，拦截 ${blocked.length} 条不合规内容`,
+      data: { added: added.length, blocked: blocked.length, blockedSamples: blocked },
+    });
+  }
   send(res, 200, { code: 0, data: { added: added.length, list: added } });
 });
 

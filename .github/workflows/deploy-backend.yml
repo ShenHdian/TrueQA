@@ -60,3 +60,13 @@ jobs:
               pm2 logs trueqa --lines 20 --nostream
               exit 1
             fi
+
+            # 种子数据冒烟检查：确认系统题已合并就绪（数据完整性兜底）
+            TOTAL=$(curl -s http://localhost:3000/api/questions | grep -o '"total":[0-9]*' | grep -o '[0-9]*')
+            if [ "${TOTAL:-0}" -ge 30 ]; then
+              echo "seed OK ✅  系统题数量 = $TOTAL"
+            else
+              echo "WARN: 种子合并异常，当前系统题仅 $TOTAL 道（预期 >=30），请登服务器排查 seed.js"
+              pm2 logs trueqa --lines 20 --nostream
+              exit 1
+            fi
