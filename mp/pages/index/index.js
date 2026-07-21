@@ -36,7 +36,4 @@ Page({
       });
   },
 
-  goBattle() {
-    wx.navigateTo({ url: '/subpackages/battle/pages/room/room' });
-  },
 });

@@ -66,9 +66,6 @@
 .draw-btn {
   margin-top: 8rpx;
 }
-.battle-entry {
-  margin-top: 24rpx;
-}
 .tip {
   text-align: center;
   margin-top: 28rpx;

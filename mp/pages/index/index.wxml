@@ -24,9 +24,5 @@
     {{spinning ? '抽取中…' : '抽一张'}}
   </button>
 
-  <view class="battle-entry">
-    <button class="btn btn-ghost" bindtap="goBattle">邀请好友对战</button>
-  </view>
-
   <view class="tip muted">优先抽取你自己的题；没有时自动抽系统题</view>
 </view>

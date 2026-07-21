@@ -4,16 +4,6 @@
     "pages/bank/bank",
     "pages/profile/profile"
   ],
-  "subPackages": [
-    {
-      "root": "subpackages/battle",
-      "pages": [
-        "pages/room/room",
-        "pages/fight/fight",
-        "pages/result/result"
-      ]
-    }
-  ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",
     "navigationBarTitleText": "真心话",

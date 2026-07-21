@@ -1,6 +1,6 @@
-// 系统题种子：从 server/data/seed-questions.json 幂等合并进 db.json。
-// 该文件已入库（不被 .gitignore 排除），会随 CI 部署到服务器，启动时自动合并，
-// 解决“系统题库上不去 / 线上空题库”的问题。
+// 系统题种子：写入 SQLite（幂等，INSERT OR IGNORE）。
+// 读取 server/data/seed-questions.json（已入库，随 CI 部署到服务器），
+// 缺失时回退内置 30 题，解决“系统题库上不去 / 线上空题库”问题。
 const fs = require('fs');
 const path = require('path');
 
@@ -9,16 +9,16 @@ const SEED_FILE = path.join(DATA_DIR, 'seed-questions.json');
 
 // 兜底内置（防止种子文件缺失导致完全没有系统题）
 const FALLBACK = [
-  '你认为一段关系里最重要的是什么？',
-  '有人当众让你下不来台，你会当场回击还是事后算账？',
-  '你愿意为了喜欢的城市放弃现在的工作吗？',
-  '朋友借钱不还，你还会借第二次吗？',
-  '你更看重多赚钱还是活得舒服？',
-  '原则冲突时，你会坚持底线还是适当妥协？',
-  '你最不能容忍伴侣的哪种行为？',
-  '重选一次专业，你还会选现在的吗？',
-  '在足够大的利益面前，你会出卖朋友吗？',
-  '你如何定义“成功”？',
+  { id: 'sys-1', content: '你认为一段关系里最重要的是什么？', anger: 5 },
+  { id: 'sys-2', content: '有人当众让你下不来台，你会当场回击还是事后算账？', anger: 7 },
+  { id: 'sys-3', content: '你愿意为了喜欢的城市放弃现在的工作吗？', anger: 4 },
+  { id: 'sys-4', content: '朋友借钱不还，你还会借第二次吗？', anger: 6 },
+  { id: 'sys-5', content: '你更看重多赚钱还是活得舒服？', anger: 5 },
+  { id: 'sys-6', content: '原则冲突时，你会坚持底线还是适当妥协？', anger: 6 },
+  { id: 'sys-7', content: '你最不能容忍伴侣的哪种行为？', anger: 7 },
+  { id: 'sys-8', content: '重选一次专业，你还会选现在的吗？', anger: 4 },
+  { id: 'sys-9', content: '在足够大的利益面前，你会出卖朋友吗？', anger: 8 },
+  { id: 'sys-10', content: '你如何定义“成功”？', anger: 4 },
 ];
 
 function clampAnger(v) {
@@ -34,44 +34,24 @@ function loadSeedQuestions() {
       if (Array.isArray(arr) && arr.length) return arr;
     }
   } catch (e) {
-    console.warn('[seed] 读取 seed-questions.json 失败，回退内置 10 题：', e.message);
+    console.warn('[seed] 读取 seed-questions.json 失败，回退内置题：', e.message);
   }
-  return FALLBACK.map((content, i) => ({ id: 'sys-' + (i + 1), content, anger: 5, ai_reason: '' }));
+  return FALLBACK;
 }
 
-function seed(db) {
+// 向 SQLite 写入系统题（幂等：相同 id 不重复插入）
+function seedSql(db) {
   const seeds = loadSeedQuestions();
-  const byId = new Map(db.questions.map((q) => [q.id, q]));
+  const ins = db.prepare(
+    'INSERT OR IGNORE INTO questions (id, content, anger, source, owner_openid, created_at) VALUES (?,?,?,?,?,?)'
+  );
   let added = 0;
-  let updated = 0;
-
-  seeds.forEach((s) => {
-    const anger = clampAnger(s.anger);
-    const existing = byId.get(s.id);
-    if (existing) {
-      // 已存在：仅同步系统题的怒气值（不碰用户题、不覆盖内容）
-      if (existing.source === 'system' && existing.anger !== anger) {
-        existing.anger = anger;
-        updated++;
-      }
-      return;
-    }
-    db.questions.push({
-      id: s.id,
-      content: String(s.content || '').trim(),
-      anger,
-      ai_reason: s.ai_reason || '',
-      source: 'system',
-      owner_openid: '',
-      createdAt: Date.now(),
-    });
-    added++;
-  });
-
-  if (added || updated) {
-    console.log(`[seed] 系统题已同步：新增 ${added} 道，更新怒气值 ${updated} 道`);
+  for (const s of seeds) {
+    if (!s || !s.id || !s.content) continue;
+    const r = ins.run(s.id, String(s.content).trim(), clampAnger(s.anger), 'system', '', Date.now());
+    if (r && r.changes > 0) added++;
   }
-  return db;
+  if (added) console.log(`[seed] 系统题已写入 ${added} 道`);
 }
 
-module.exports = { seed, loadSeedQuestions };
+module.exports = { seedSql, loadSeedQuestions };

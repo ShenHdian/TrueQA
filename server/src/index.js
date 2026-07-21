@@ -1,18 +1,16 @@
-// 真心话抽卡对战 · 后端服务（零依赖，纯 Node http）
+// 真心话抽卡 · 后端服务（零依赖：纯 http + Node 内置 node:sqlite）
 // 本地运行：node src/index.js  （默认端口 3000）
 const http = require('http');
 const crypto = require('crypto');
-const { read, write } = require('./store');
-const { seed } = require('./seed');
-const { scoreAnger } = require('./ai');
+const { db, migrateFromJson } = require('./db');
+const { seedSql } = require('./seed');
 const { checkText } = require('./wechat');
 
 const PORT = process.env.PORT || 3000;
 
-// 初始化 + 种子
-let db = read();
-db = seed(db);
-write(db);
+// 初始化：迁移遗留 JSON（如有）→ 写入系统题种子
+migrateFromJson();
+seedSql(db);
 
 // ---------- 工具 ----------
 function send(res, status, obj) {
@@ -39,22 +37,18 @@ function readBody(req) {
   });
 }
 
-function getUserByToken(token) {
-  if (!token) return null;
-  const openid = db.tokenIndex[token];
-  return openid ? db.users[openid] : null;
-}
-
 function authUser(req) {
   const h = req.headers['authorization'] || '';
   const token = h.replace(/^Bearer\s+/i, '');
-  return getUserByToken(token);
+  if (!token) return null;
+  const row = db.prepare('SELECT openid FROM users WHERE token = ?').get(token);
+  if (!row) return null;
+  return db.prepare('SELECT openid, nick, avatar, level, exp FROM users WHERE openid = ?').get(row.openid);
 }
 
 function publicUser(u) {
   if (!u) return null;
-  const { token, ...rest } = u;
-  return rest;
+  return { openid: u.openid, nick: u.nick, avatar: u.avatar, level: u.level, exp: u.exp };
 }
 
 function genToken() {
@@ -97,29 +91,23 @@ route('POST', '/api/auth/wechat-login', async (req, res) => {
     openid = 'dev_' + crypto.createHash('md5').update(String(code)).digest('hex').slice(0, 12);
   }
 
-  if (!db.users[openid]) {
-    db.users[openid] = {
-      openid,
-      nick: '微信用户',
-      avatar: '',
-      level: 1,
-      exp: 0,
-      hp_base: 20,
-      createdAt: Date.now(),
-    };
-  }
   const token = genToken();
-  db.users[openid].token = token;
-  db.tokenIndex[token] = openid;
-  write(db);
-  send(res, 200, { code: 0, data: { access_token: token, user: publicUser(db.users[openid]) } });
+  const existing = db.prepare('SELECT openid FROM users WHERE openid = ?').get(openid);
+  if (existing) {
+    db.prepare('UPDATE users SET token = ?, created_at = COALESCE(created_at, ?) WHERE openid = ?').run(token, Date.now(), openid);
+  } else {
+    db.prepare('INSERT INTO users (openid, nick, avatar, level, exp, token, created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(openid, '微信用户', '', 1, 0, token, Date.now());
+  }
+  const user = db.prepare('SELECT openid, nick, avatar, level, exp FROM users WHERE openid = ?').get(openid);
+  send(res, 200, { code: 0, data: { access_token: token, user: publicUser(user) } });
 });
 
 // 随机抽题：优先用户自建题，无则系统题
 route('GET', '/api/questions/random', async (req, res) => {
   const user = authUser(req);
-  const myQs = db.questions.filter((q) => q.source === 'user' && q.owner_openid === (user ? user.openid : ''));
-  const pool = myQs.length ? myQs : db.questions.filter((q) => q.source === 'system');
+  const myQs = db.prepare("SELECT * FROM questions WHERE source = 'user' AND owner_openid = ?").all(user ? user.openid : '');
+  const pool = myQs.length ? myQs : db.prepare("SELECT * FROM questions WHERE source = 'system'").all();
   if (pool.length === 0) return send(res, 200, { code: 1, message: 'no questions' });
   const q = pool[Math.floor(Math.random() * pool.length)];
   send(res, 200, { code: 0, data: q });
@@ -129,12 +117,9 @@ route('GET', '/api/questions/random', async (req, res) => {
 route('GET', '/api/questions', async (req, res) => {
   const user = authUser(req);
   const mine = req.url.includes('mine=1');
-  let list;
-  if (mine && user) {
-    list = db.questions.filter((q) => q.owner_openid === user.openid);
-  } else {
-    list = db.questions.filter((q) => q.source === 'system');
-  }
+  const list = mine && user
+    ? db.prepare('SELECT * FROM questions WHERE owner_openid = ?').all(user.openid)
+    : db.prepare("SELECT * FROM questions WHERE source = 'system'").all();
   send(res, 200, { code: 0, data: { list, total: list.length } });
 });
 
@@ -148,17 +133,10 @@ route('POST', '/api/questions', async (req, res) => {
   // UGC 内容安全审核
   const c = await checkText(text, user.openid);
   if (!c.ok) return send(res, 200, { code: 2, message: c.reason || '内容不合规，请修改后重试' });
-  const q = {
-    id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-    content: String(content).trim(),
-    anger: clampAnger(anger),
-    ai_reason: '',
-    source: 'user',
-    owner_openid: user.openid,
-    createdAt: Date.now(),
-  };
-  db.questions.push(q);
-  write(db);
+  const id = 'u_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+  db.prepare('INSERT INTO questions (id, content, anger, source, owner_openid, created_at) VALUES (?,?,?,?,?,?)')
+    .run(id, text, clampAnger(anger), 'user', user.openid, Date.now());
+  const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(id);
   send(res, 200, { code: 0, data: q });
 });
 
@@ -169,6 +147,7 @@ route('POST', '/api/questions/batch', async (req, res) => {
   const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
   const added = [];
   const blocked = [];
+  const ins = db.prepare('INSERT INTO questions (id, content, anger, source, owner_openid, created_at) VALUES (?,?,?,?,?,?)');
   for (const it of items) {
     const text = it && it.content ? String(it.content).trim() : '';
     if (!text) continue;
@@ -177,18 +156,10 @@ route('POST', '/api/questions/batch', async (req, res) => {
       blocked.push(text.slice(0, 20));
       continue;
     }
-    added.push({
-      id: 'u_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      content: text,
-      anger: clampAnger(it.anger),
-      ai_reason: '',
-      source: 'user',
-      owner_openid: user.openid,
-      createdAt: Date.now(),
-    });
+    const id = 'u_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    ins.run(id, text, clampAnger(it.anger), 'user', user.openid, Date.now());
+    added.push({ id, content: text, anger: clampAnger(it.anger) });
   }
-  db.questions.push(...added);
-  write(db);
   if (blocked.length) {
     return send(res, 200, {
       code: 2,
@@ -204,11 +175,10 @@ route('DELETE', '/api/questions/([^/]+)', async (req, res, params) => {
   const user = authUser(req);
   if (!user) return send(res, 200, { code: 401, message: 'unauthorized' });
   const id = params[0];
-  const idx = db.questions.findIndex((q) => q.id === id && q.owner_openid === user.openid);
-  if (idx < 0) return send(res, 200, { code: 1, message: 'not found' });
-  const [removed] = db.questions.splice(idx, 1);
-  write(db);
-  send(res, 200, { code: 0, data: removed });
+  const info = db.prepare('SELECT id FROM questions WHERE id = ? AND owner_openid = ?').get(id, user.openid);
+  if (!info) return send(res, 200, { code: 1, message: 'not found' });
+  db.prepare('DELETE FROM questions WHERE id = ?').run(id);
+  send(res, 200, { code: 0, data: { id } });
 });
 
 // 修改（仅自己的）：可改 content / anger
@@ -216,25 +186,17 @@ route('PUT', '/api/questions/([^/]+)', async (req, res, params) => {
   const user = authUser(req);
   if (!user) return send(res, 200, { code: 401, message: 'unauthorized' });
   const id = params[0];
-  const q = db.questions.find((x) => x.id === id && x.owner_openid === user.openid);
+  const q = db.prepare('SELECT * FROM questions WHERE id = ? AND owner_openid = ?').get(id, user.openid);
   if (!q) return send(res, 200, { code: 1, message: 'not found' });
   const { content, anger } = req.body || {};
   if (content !== undefined) {
     const c = String(content).trim();
     if (!c) return send(res, 200, { code: 1, message: 'empty content' });
-    if (c !== q.content) q.ai_reason = ''; // 题目变了，旧的 AI 评分依据作废
-    q.content = c;
+    db.prepare('UPDATE questions SET content = ? WHERE id = ?').run(c, id);
   }
-  if (anger !== undefined) q.anger = clampAnger(anger);
-  write(db);
-  send(res, 200, { code: 0, data: q });
-});
-
-// AI 评分占位
-route('POST', '/api/ai/score', async (req, res) => {
-  const { content } = req.body || {};
-  const r = scoreAnger(content);
-  send(res, 200, { code: 0, data: r });
+  if (anger !== undefined) db.prepare('UPDATE questions SET anger = ? WHERE id = ?').run(clampAnger(anger), id);
+  const updated = db.prepare('SELECT * FROM questions WHERE id = ?').get(id);
+  send(res, 200, { code: 0, data: updated });
 });
 
 // ---------- HTTP 服务 ----------
